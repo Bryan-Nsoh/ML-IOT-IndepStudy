@@ -1,0 +1,33 @@
+graph LR
+    A["Crop Water Stress Index (CWSI)"] --> I(((..................LSTM..................)))
+    B["Reference Evapotranspiration (ETref)"] --> I
+    C["Volumetric Water Content (VWC)"] --> I
+    D["Soil Water Stress Index (SWSI)"] --> I
+    E["Growing Degree Days (GDD)"] --> I
+    G[Current Weather Data] --> I
+    H[Forecast Weather Data] --> I
+    I --> J[GDD]
+    I --> K[CWSI]
+    I --> L[SWSI]
+    I --> M[ETref]
+
+    classDef rightBoxStyle fill:none,stroke:#f77b4,stroke-width:2px;
+    classDef ellipseStyle stroke:#000000,stroke-width:2px, fill:none;
+    classDef leftBoxStyle fill:none,stroke:#2ca02c,stroke-width:2px;
+    classDef edgeStyle color:#000000,stroke-width:2px;
+
+    classDef defaultFont font-size:12px, fill:none, font-weight:bold;
+    class A,B,C,D,E,F,G,H,I,J,K,L,M defaultFont
+    class A,B,C,D,E,F,G,H rightBoxStyle;
+    class J,K,L,M leftBoxStyle;
+    class I ellipseStyle;
+    linkStyle default edgeStyle;
+
+    %% Below, you can define specific styles if needed. 
+    %% The classes above refer to these style definitions.
+    classDef defaultFont font-size:12px, fill:none, font-weight:bold;
+    classDef defaultStroke stroke-width:2px;
+    classDef redStroke stroke:#DB4437,stroke-width:2px;
+    classDef greenBox fill:#98FB98,stroke:#98FB98,stroke-width:0px,color:black;
+    classDef pinkBox fill:#FFC0CB,stroke:#FFC0CB,stroke-width:0px,color:black;
+    linkStyle default stroke-width:2px, color:black, font-size:12px;

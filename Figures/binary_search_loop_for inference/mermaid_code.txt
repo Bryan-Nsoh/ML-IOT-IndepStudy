@@ -1,0 +1,37 @@
+graph TD
+    A(Initialize: Irrigation Amount = 0.5) --> B(Set Current Irrigation Amount)
+    B --> id1(((Predict Indices)))
+    C(Other Inputs) --> id1
+    id1 --> a(ETref)
+    id1 --> b(CWSI)
+    id1 --> c(SWSI)
+    id1 --> d(GDD)
+    a --> E("Combined Stress Index(CSI), <br>CSI = ETref*a + CWSI*b + SWSI*c + GDD*d")
+    b --> E
+    c --> E
+    d --> E
+    E --> F{CSI > Threshold?}
+    F --> G[Yes]
+    F --> H[No]
+    G --> I1("Update Irrigation Amount:<br>New Amount = (Current + 1) / 2")
+    H --> I2(Update Irrigation Amount:<br>New Amount = Current / 2)
+    I1 --> I{Irrigation Change < 0.1?}
+    I2 --> I
+    I --> J[Yes]
+    I --> K[No]
+    J --> L(End:Final Irrigation Amount)
+    K --> B
+
+    classDef defaultFont font-size:50px, fill:none, font-weight:bold;
+    classDef defaultStroke stroke-width:4px;
+    classDef redStroke stroke:#DB4437,stroke-width:10px;
+    classDef greenBox fill:#98FB98,stroke:#98FB98,stroke-width:0px,color:black;
+    classDef pinkBox fill:#FFC0CB,stroke:#FFC0CB,stroke-width:0px,color:black;
+    linkStyle default stroke-width:4px, color:black, font-size:44px;
+    class A,B,C,id1,a,b,c,d,E,F,G,H,I,J,K,I1,I2,L defaultFont;
+    class A,B,C,id1,a,b,c,d,E,F,I1,I2,L defaultStroke;
+    class A,L redStroke;
+    class G greenBox;
+    class H pinkBox;
+    class J greenBox;
+    class K pinkBox;

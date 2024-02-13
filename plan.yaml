@@ -1,0 +1,86 @@
+data_preparation:
+  description: |
+    Prepare the dataset by scaling and normalizing features, excluding irrelevant columns, and handling categorical features. 
+    Predict targets for the next 96 steps after a sequence of 168 hours (one week) of data. Assume the data is in df_2014, indexed by timestamp. data is hourly
+  steps:
+    - identify_columns:
+        description: |
+          Identify different types of columns for preprocessing. 
+        time_columns: ['day_sin', 'day_cos', 'hour_sin', 'hour_cos', 'dow_sin', 'dow_cos']
+        continuous_columns: 
+          - 'Ta_2m_Avg'
+          - 'RH_2m_Avg'
+          - 'Solar_2m_Avg'
+          - 'WndAveSpd_3m'
+          - 'Rain_1m_Tot'
+          - 'Dp_2m_Avg'
+          - 'TaMax_2m'
+          - 'TaMin_2m'
+          - 'RHMax_2m'
+          - 'RHMin_2m'
+          - 'HeatIndex_2m_Avg'
+          - 'canopy_temp'
+          - 'VWC_06'
+          - 'VWC_18'
+          - 'VWC_30'
+          - 'VWC_42'
+          - 'daily_et'
+          - 'CWSI'
+          - 'SWSI'
+          - 'irrigation'
+          - 'precip_irrig'
+        target_columns: ['VWC_06']
+    - time_series_split:
+        description: |
+          Create sequences of 168 hours for input and predict the next 96 hours' target values. 
+          This sliding window approach is used to generate training and validation sets.
+        method: SlidingWindow
+        input_window: 168
+        forecast_horizon: 96
+        stride: 1
+        training_split: 0.8
+        validation_split: 0.2
+
+
+model_training:
+  description: |
+    Use an LSTM model to predict 'VWC_06' for the next 96 steps. The model trains on sequences of one week's data (168 hours), predicting the subsequent 96 hours (4 days). Training employs a sliding window approach, advancing by one hour for each iteration, using actual past values for training to ensure accuracy.
+  configuration:
+    lstm_architecture:
+      description: |
+        A sequential model with LSTM layers, optimized for time series forecasting. This architecture is designed to process one week of input data to predict 'VWC_06' values for the following 96 hours.
+      layers:
+        - LSTM:
+            units: 128
+            input_shape: (168, num_features)  # One week of data, 'num_features' is the total number of features per hour.
+            return_sequences: True
+        - LSTM:
+            units: 64
+            return_sequences: False  # Return a single context vector to connect to the Dense layer.
+        - Dense: 
+            units: 96  # Output layer, one unit per hour for the next 96 hours.
+      compile:
+        optimizer: 'adam'
+        loss: 'mse'
+    training_strategy:
+      description: |
+        Implement a custom training loop with an 80/20 data split. 80% of the data is used for training and 20% for validation, ensuring all data contributes to model evaluation.
+      steps:
+        - train_on_sequence:
+            description: |
+              1. Isolate a sequence of 168 hours (input features) from the training dataset.
+              2. Extract the corresponding 'VWC_06' values for the next 96 hours (target output).
+              3. Train the LSTM model on this input-output pair.
+              4. Calculate MSE loss between the model's predicted 'VWC_06' for the 96-hour forecast horizon and the ground truth values.
+              5. Repeat steps 1-4, sliding the window forward by one hour, using only the training subset of the data.
+              6. Ensure each prediction step sequentially follows the previous, maintaining clear temporal progression.
+        - calculate_validation_loss:
+            description: |
+              After training, use the remaining 20% of the dataset as a validation set. Predict 'VWC_06' values for 96 hours:
+              1. For each validation sequence, generate predictions.
+              2. Calculate average MSE loss across all validation sequences.
+              3. Use timestamps from the input data to align predictions with specific future times, ensuring clarity on when each prediction applies.
+  logging:
+    level: INFO
+    metrics: ['loss', 'val_loss']
+    frequency: 1 epoch 

@@ -1,29 +1,24 @@
 ## LSTM for Predicting Volumetric Water Content (VWC)
 
-This Jupyter notebook focuses on developing and training an LSTM model to predict volumetric water content (VWC) in the soil, a crucial indicator of soil moisture and plant stress, as part of a larger project on automated irrigation scheduling.
+This notebook develops an LSTM model to predict soil volumetric water content (VWC) for automated irrigation scheduling.
 
-**Specifics:**
+**Key Points:**
+* Builds and evaluates LSTM model for VWC prediction
+* Explores data preprocessing techniques to improve performance
+* Uses time series cross-validation to assess generalizability
+* Identifies challenges and suggests future strategies
 
-* **Model Development and Training:** The notebook builds, trains, and evaluates an LSTM model for VWC prediction, including functions for data preprocessing, sequence creation, model configuration, training, and validation.
-* **Data Preprocessing and Feature Engineering:** It explores techniques like mean subtraction, derivative calculation, and log transformation to improve model performance by normalizing data, highlighting irrigation/precipitation events, and addressing data distribution issues.
-* **Performance Evaluation and Challenges:** Time series cross-validation is used to assess modelgeneralizability, identifying challenges such as potential overfitting and difficulties in predicting mean VWC values.
-* **Future Strategies:** The notebook suggests strategies to address these challenges, including expanding window cross-validation, introducing categorical features, and adjusting filter smoothing parameters.
+**Project Contribution:**
+* Provides framework for VWC prediction model
+* Identifies effective data preprocessing techniques
+* Highlights areas for improvement
 
-**Contribution to the Project:**
+**Applications:**
+* Enhance plant stress prediction model
+* Develop optimal irrigation algorithm
+* Integrate with LoRaWAN IoT platform
 
-This notebook serves as a crucial component of the larger automated irrigation scheduling project by:
-
-* Providing a framework for developing and refining the machine learning model for VWC prediction.
-* Identifying data preprocessing and feature engineering techniques that can improve model performance.
-* Highlighting areas for further improvement and suggesting potential solutions.
-
-The insights and results from this notebook will be used to:
-
-* Build a more robust andgeneralizable model for predicting plant stress.
-* Develop an algorithm to infer the optimal irrigation amount based on predicted VWC.
-* Integrate the model with the LoRaWAN IoT platform for real-time data collection and irrigation control.
-
-In summary, this notebook plays a vital role in developing and refining the machine learning component of the automated irrigation scheduling system, contributing to sustainable and efficient agricultural practices. 
+This work is crucial for developing an efficient, sustainable automated irrigation system.
 
 ### Cell 1: Data Processing Functions
 
@@ -59,13 +54,6 @@ This cell defines functions for data preparation:
 * **`reverse_transform_and_scale_data(...)`:**
     * Reverses transformations and scaling applied to the DataFrame.
     * Uses stored metadata to undo scaling, add back mean, and reconstruct original values from derivatives.
-
-**Areas of Emphasis:**
-
-* **Handling NaN values:** The code uses a combination of trimming and interpolation to handle missing data.
-* **Data transformations:** The code applies Savitzky-Golay filter and log transformation to specific columns.
-* **Scaling:** MinMaxScaler is used with a buffer to account for potential future data variations.
-
 
 ```python
 
@@ -406,12 +394,6 @@ This cell defines functions for model building, training, and validation:
         * Trains the model for specified epochs, performing training and validation steps for each fold.
         * Implements early stopping and saves the best model.
 
-**Areas of Emphasis:**
-
-* **Model architecture:** The LSTM model uses multiple layers with decreasing units and regularization techniques.
-* **Loss function:** MSE is used as the loss function to penalize prediction errors.
-* **Validation strategy:** TimeSeriesSplit ensures chronological validation, preventing the model from learning from future data.
-* **Early stopping:** The training process stops early if validation loss doesn't improve for a specified number of epochs.
 
 
 ```python
@@ -770,15 +752,6 @@ This cell demonstrates the complete workflow for training and evaluating an LSTM
 * **Reverse Transformation:** Transform the predictions back to the original scale and format using the saved transformation metadata.
 * **Visualization:** Plot the predictions and actual values for comparison and evaluation. 
 
-**Key Points:**
-
-* **Consistency:** Ensure consistency in data processing and transformation between training and inference.
-* **Parameter Tuning:** Adjust training parameters to optimize model performance.
-* **Model and Metadata Saving:** Save the best model and transformation metadata for reliable inference.
-* **Visualization:** Use plots to assess the quality of predictions and compare them to actual values. 
-
-By following this workflow, you can effectively train an LSTM model and use it to make predictions on new data.
-
 
 ```python
 # Example Usage
@@ -1022,10 +995,9 @@ This cell investigates whether the final trained model is responsive to injected
 
 4. **Visualization:** The code plots the actual values and the predicted values for each target column and each injected irrigation amount. It also creates bar charts to compare the average values of the target columns for the actual data and the different injection scenarios.
 
-The results show that despite correct predictions on the test data, the model is not responsive to the injected irrigation amounts at the currently tested index. This raises concerns about the model's sensitivity to irrigation, which is a key requirement for the project.
+The results show that despite correct predictions on the test data, the model is not responsive to the injected irrigation amounts at the tested indices. This raises concerns about the model's sensitivity to irrigation, which is a key requirement for the project.
 
 **Future Considerations:**
-- Test the model's sensitivity to irrigation injection at different indices within the feasible range to further probe its responsiveness.
 - Investigate the reasons behind the model's lack of sensitivity to irrigation amounts and explore potential solutions, such as adjusting the model architecture, input features, or training process.
 - Consider alternative approaches or modifications to the model to ensure it captures the impact of irrigation on the target variables effectively.
 

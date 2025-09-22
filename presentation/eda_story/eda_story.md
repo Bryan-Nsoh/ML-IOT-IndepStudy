@@ -1,99 +1,96 @@
 ---
 title: "Exploratory Data Story – Soil Moisture LSTM"
 author: Bryan Nsoh
-institute: ML IoT Independent Study
-keywords: [EDA, irrigation, LSTM, soil sensors]
 ---
 
-# Field Snapshot
+# soil moisture automation needs sensor context so here is the field we logged...
 
-![Sensor grid placeholder](images/sensor_layout_placeholder.png){width=80%}
+![sensor layout](images/sensor_layout_placeholder.png){width=85%}
 
-- LoRaWAN nodes log volumetric water content (VWC) at 6, 18, 30 in depths plus weather & irrigation telemetry
-- Replace the placeholder with your field photo when available – visual context matters for stakeholders
+- lorawan nodes sample volumetric water content at 6, 18, and 30 inch depths every hour
+- the weather mast streams air temperature, humidity, wind, canopy temperature, and rainfall
+- irrigation totals sync from the controller so agronomists see actuations alongside sensors
 
-# Coverage Check
+# before modeling we check coverage so you see the telemetry gaps...
 
-![Missingness chart](images/feature_missingness.png){width=95%}
+![coverage](images/feature_missingness.png){width=95%}
 
-- >80% coverage on core soil & weather channels
-- Stress indices and categorical annotations (crop, stage) too sparse for modeling this season
+- core soil moisture and weather channels exceed eighty percent availability for the season
+- stress indices such as cwsi, swsi, and daily et stayed too sparse to trust in training
+- categorical crop and growth stage notes were largely absent so we excluded them
 
-# Raw Signal Behaviour
+# raw probes jitter so domain smoothing keeps irrigation pulses intact...
 
-![Cleaning pipeline](images/vwc_cleaning_highlight.png){width=100%}
+![cleaning](images/vwc_cleaning_highlight.png){width=100%}
 
-- Hourly VWC oscillates with sensor noise and irrigation pulses
-- Daily averaging + Savitzky–Golay smooth preserves irrigation signature without dulling peaks
+- hourly volumetric water content is spiky because of sensor noise and extraction cycles
+- daily means plus pchip interpolation honour the recharge curve between irrigations
+- a savitzky–golay window of twenty one keeps irrigation peaks while suppressing jitter
 
-# Domain Clean-up Moves
+# spike flags separate irrigation jumps from drift so alerts stay actionable...
 
-:::{.columns}
-::: {.column width="55%"}
-- PCHIP interpolation retraces the natural recharge/decay curve
-- 15% spike flags isolate true irrigation jumps from drift
-- Rolling 7-day precipitation = our soil water budget proxy
-- Log transform + binary flag emphasise rare irrigation events
-:::
-::: {.column width="45%"}
-![Spike flags](images/vwc_spike_flags.png){width=100%}
-:::
-:::
+![spike flags](images/vwc_spike_flags.png){width=100%}
 
-# Feature Decisions
+- we flag +15% day-over-day jumps as irrigation or rainfall response candidates
+- −15% drops reveal drainage events or sensor faults that need review
+- these flags feed downstream labelling and dashboard alerts for the irrigation team
 
-![Feature selection](images/feature_selection_matrix.png){width=100%}
+# we cut noisy channels and keep agronomy signals so the feature set stays focused...
 
-# Domain-Specific Transforms
+![feature selection](images/feature_selection_matrix.png){width=100%}
 
-- Center each VWC depth per plot to learn deviations, not absolute bias
-- Derivatives teach the LSTM to sense drying velocity
-- Binary irrigation flag tells the network when actuators fired
+- retained features cover soil moisture layers, temporal encoding, weather load, and irrigation context
+- 42" probes showed persistent flatlines so we documented and removed them
+- sparse crop metadata and redundant elevation columns were dropped to avoid leakage
 
-\[
-\Delta \text{VWC}_d(t) = \text{VWC}_d(t) - \text{VWC}_d(t-1)\qquad
-\hat{p}(t) = \log\big(\text{precip\_irrig}(t) + 1\big)
-\]
+# domain transforms teach the lstm to feel rates and actuator events...
 
-# Modeling Pipeline (Kept Simple)
+- center each vwc depth per plot so the network learns deviations instead of static bias
+- compute Δvwc_d(t) = vwc_d(t) − vwc_d(t−1) to encode drying velocity
+- log-transform precipitation + 1 and add a binary irrigation flag to highlight rare events
 
-- Sliding window: 168 hourly steps \(\to\) 96-hour horizon
-- Heavy regularised LSTM stack (512→64) to respect temporal context
-- TimeSeriesSplit intended for leave-one-plot-out (bug limited generalisation – documented in findings)
+# sequence framing and regularized lstm capture a week of history before forecasting four days...
 
-# Forecast Behaviour – Plot 2003
+- 168-hour input window aligns with irrigation planning cadence
+- 96-hour horizon meets the farm requirement for scheduling and monitoring
+- stacked five-layer lstm (512→256→128→128→64) uses dropout and l2 regularisation to curb overfit
+- timeseriessplit was meant for leave-one-plot-out yet the bug reused the first plot folds
 
-![Pred vs actual – Plot 2003](images/pred_vs_actual_plot2003.png){width=100%}
+# plot 2003 shows surface tracking while deeper layers lag revealing irrigation sensitivity gaps...
 
-- Captures trend but under-reacts to irrigation rebounds deeper than 6"
+![plot 2003](images/pred_vs_actual_plot2003.png){width=100%}
 
-# Forecast Behaviour – Plot 2014
+- 6" predictions follow the smoothed trend but under-react immediately after irrigation
+- 18" and 30" layers respond too softly versus the ground-truth rebounds
+- the model captured seasonal decline yet missed amplitude which is key for scheduling
 
-![Pred vs actual – Plot 2014](images/pred_vs_actual_plot2014.png){width=100%}
+# plot 2014 exposes positive bias because dry-down exemplars were scarce in training...
 
-- Bias high at surface; deeper probes miss sharp peaks → insufficient dry-down examples
+![plot 2014](images/pred_vs_actual_plot2014.png){width=100%}
 
-# Forecast Behaviour – Plot 2015
+- surface depth stays elevated even as actual moisture declines after events
+- deeper probes fail to catch the sharp post-irrigation spike that agronomists expect
+- highlights need for balanced dry and wet sequences from every plot in training
 
-![Pred vs actual – Plot 2015](images/pred_vs_actual_plot2015.png){width=100%}
+# plot 2015 lags forty eight hours proving the fold reuse bug and irrigation imbalance...
 
-- Tracks trend yet lags ~48 h; demonstrates training fold bug + irrigation imbalance
+![plot 2015](images/pred_vs_actual_plot2015.png){width=100%}
 
-# Injection Sensitivity Test
+- forecasts trail the observed rebound by roughly two days across depths
+- training data lacked aggressive irrigation cycles represented in this plot
+- fixing the fold logic ensures each site contributes sequences and stops this lag
 
-![Injection sweep](images/irrigation_injection_failure.png){width=100%}
+# injection experiments fail because features never recompute and scaling shifts the inputs...
 
-- Injecting +0.25 to +1.0 water after scaling failed to move predictions
-- Missing feature recompute + distribution shift explain the mismatch
+![injection](images/irrigation_injection_failure.png){width=100%}
 
-# Honest Takeaways
+- water gets added after scaling so engineered features like logs and cumulative sums stay frozen
+- scaled precip_irrig exceeds its buffered range which pushes the network off manifold
+- with little cross-plot diversity the lstm defaults to trend continuation instead of reacting
 
-- Cleaning + feature engineering are tailored to agronomic reality and reusable for next seasons
-- Model failure stems from evaluation bug + post-hoc injection design, not from lack of signal
-- Present the lessons learned and next steps as future work rather than unfinished business
+# lessons fuel next season so data prep stays but the modeling stack evolves...
 
-# Appendix – Swap-In Visuals
+- current pipeline delivers clean engineered datasets ready for retraining and sharing
+- next iteration will recompute features before sensitivity tests and repair fold reuse
+- documented findings become onboarding material for agronomists and the controls team
 
-- Add actual field/sensor photography on Slide 1
-- If available, include flatline sensor example or rain event on backup slide for Q&A
-- Keep the PPTX (`presentation/eda_story/eda_story.pptx`) handy for template styling
